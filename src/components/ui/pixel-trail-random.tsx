@@ -89,19 +89,13 @@ const PixelDotRandom: React.FC<PixelDotRandomProps> = React.memo(
   ({ id, size, fadeDuration, delay }) => {
     const controls = useAnimationControls()
     
-    // Bright popping colors
-    const brightColors = [
-      '#FF0000', // bright red
-      '#FFFF00', // bright yellow
-      '#00FF00', // bright green
-      '#0000FF', // bright blue
-      '#FF8000', // bright orange
-      '#8000FF', // bright purple
-    ]
-    
     const randomColor = useMemo(() => {
+      const brightColors = [
+        '#FF0000', '#FFFF00', '#00FF00', '#0000FF', '#FF8000', '#8000FF', '#FF00FF', '#00FFFF',
+        '#FF4500', '#32CD32', '#1E90FF', '#FFD700', '#FF1493', '#00CED1', '#9370DB', '#FF6347'
+      ]
       return brightColors[Math.floor(Math.random() * brightColors.length)]
-    }, [brightColors])
+    }, [])
 
     const animatePixel = useCallback(() => {
       controls.start({

@@ -449,3 +449,59 @@ html, body {
     grid-template-columns: repeat(auto-fit, minmax(clamp(150px, 22vw, 250px), 1fr));
   }
 }
+
+/* Performance optimizations for smooth scrolling */
+* {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+html {
+  scroll-behavior: smooth;
+  overscroll-behavior: none;
+}
+
+body {
+  overscroll-behavior: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Hardware acceleration for animations */
+.hardware-accelerated {
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  perspective: 1000px;
+  will-change: transform;
+}
+
+/* Optimize scroll containers */
+.scroll-container {
+  contain: layout style paint;
+  will-change: transform;
+  backface-visibility: hidden;
+}
+
+/* Smooth transitions for interactive elements */
+.smooth-transition {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Prevent text selection during scrolling */
+.no-select {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+
+/* Optimize for mobile touch */
+@media (max-width: 768px) {
+  * {
+    -webkit-tap-highlight-color: transparent;
+  }
+  
+  body {
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-x: none;
+  }
+}

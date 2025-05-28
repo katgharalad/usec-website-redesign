@@ -73,39 +73,61 @@ export function HorizontalScrollLayout() {
   const containerRef = useRef<HTMLDivElement>(null)
   const sectionsRef = useRef<HTMLDivElement>(null)
   const [currentSection, setCurrentSection] = useState(0)
+  const [isMobile, setIsMobile] = useState(false)
 
-  // Prevent body scroll conflicts
+  // Detect mobile devices
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768 || 'ontouchstart' in window)
+    }
+    
+    checkMobile()
+    window.addEventListener('resize', checkMobile)
+    
+    return () => window.removeEventListener('resize', checkMobile)
+  }, [])
+
+  // Prevent body scroll conflicts and optimize for production
   useEffect(() => {
     document.body.style.overflow = 'auto'
     document.body.style.maxWidth = '100vw'
     document.body.style.overflowX = 'hidden'
+    
+    // Add smooth scrolling behavior
+    document.documentElement.style.scrollBehavior = 'smooth'
+    
+    // Disable overscroll behavior for better mobile experience
+    document.body.style.overscrollBehavior = 'none'
+    
     return () => {
       document.body.style.overflow = 'auto'
       document.body.style.maxWidth = '100vw'
       document.body.style.overflowX = 'hidden'
+      document.documentElement.style.scrollBehavior = 'auto'
+      document.body.style.overscrollBehavior = 'auto'
     }
   }, [])
 
   useEffect(() => {
     if (!containerRef.current || !sectionsRef.current) return
 
-    // GSAP ScrollTrigger setup for horizontal scrolling (without Lenis to avoid conflicts)
+    // GSAP ScrollTrigger setup with optimized settings for production
     const sections = Array.from(sectionsRef.current.children) as HTMLElement[]
     const totalWidth = sections.length * window.innerWidth
 
-    // Set up horizontal scroll animation with faster, more responsive settings
+    // Optimized horizontal scroll animation for better performance
     const scrollTween = gsap.to(sections, {
       xPercent: -100 * (sections.length - 1),
       ease: "none",
       scrollTrigger: {
         trigger: containerRef.current,
         pin: true,
-        scrub: 0.3, // Much faster response to scroll input (was 0.8)
+        scrub: isMobile ? 0.8 : 0.5, // Slower on mobile for better control
         snap: {
           snapTo: 1 / (sections.length - 1),
-          duration: { min: 0.15, max: 0.4 }, // Faster snap transitions (was 0.3-0.8)
-          delay: 0.05, // Almost immediate snapping (was 0.2)
-          ease: "power2.out" // Snappier easing (was power2.inOut)
+          duration: isMobile ? { min: 0.3, max: 0.8 } : { min: 0.2, max: 0.6 }, // Longer on mobile
+          delay: isMobile ? 0.15 : 0.1, // Slightly longer delay on mobile
+          ease: "power2.inOut" // Smoother easing
         },
         end: () => `+=${totalWidth}`,
         onUpdate: (self: ScrollTrigger) => {
@@ -116,6 +138,10 @@ export function HorizontalScrollLayout() {
           }
         },
         invalidateOnRefresh: true,
+        anticipatePin: 1, // Better pin performance
+        refreshPriority: -1, // Lower priority for smoother scrolling
+        fastScrollEnd: true, // Better performance on fast scrolling
+        preventOverlaps: true, // Prevent scroll conflicts
       },
     })
 
@@ -422,24 +448,48 @@ export function HorizontalScrollLayout() {
     return () => {
       ScrollTrigger.getAll().forEach(trigger => trigger.kill())
     }
-  }, [currentSection])
+  }, [currentSection, isMobile])
 
-  // Handle keyboard navigation
+  // Handle keyboard navigation and scroll wheel optimization
   useEffect(() => {
+    let isScrolling = false
+    let scrollTimeout: NodeJS.Timeout
+
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "ArrowRight" && currentSection < 3) {
+        e.preventDefault()
         const nextSection = currentSection + 1
         const scrollDistance = nextSection * window.innerHeight
         window.scrollTo({ top: scrollDistance, behavior: 'smooth' })
       } else if (e.key === "ArrowLeft" && currentSection > 0) {
+        e.preventDefault()
         const prevSection = currentSection - 1
         const scrollDistance = prevSection * window.innerHeight
         window.scrollTo({ top: scrollDistance, behavior: 'smooth' })
       }
     }
 
+    const handleWheel = () => {
+      // Throttle wheel events for smoother scrolling
+      if (isScrolling) return
+      
+      isScrolling = true
+      clearTimeout(scrollTimeout)
+      
+      scrollTimeout = setTimeout(() => {
+        isScrolling = false
+      }, 50) // 50ms throttle
+    }
+
+    // Add passive listeners for better performance
     window.addEventListener("keydown", handleKeyDown)
-    return () => window.removeEventListener("keydown", handleKeyDown)
+    window.addEventListener("wheel", handleWheel, { passive: true })
+    
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown)
+      window.removeEventListener("wheel", handleWheel)
+      clearTimeout(scrollTimeout)
+    }
   }, [currentSection])
 
   return (
@@ -466,36 +516,78 @@ export function HorizontalScrollLayout() {
       {/* Main Horizontal Scroll Container */}
       <div 
         ref={containerRef}
-        className="relative w-full h-responsive-screen overflow-hidden safe-width"
-        style={{ height: "100vh", maxWidth: "100vw", overflowX: "hidden" }}
+        className="relative w-full h-responsive-screen overflow-hidden safe-width hardware-accelerated scroll-container no-select"
+        style={{ 
+          height: "100vh", 
+          maxWidth: "100vw", 
+          overflowX: "hidden",
+          willChange: "transform", // Optimize for animations
+          backfaceVisibility: "hidden", // Prevent flickering
+          perspective: "1000px" // Enable 3D acceleration
+        }}
       >
         <div 
           ref={sectionsRef}
-          className="flex w-[400vw] h-full scroll-smooth"
+          className="flex w-[400vw] h-full hardware-accelerated"
           style={{
             scrollSnapType: 'x mandatory',
             scrollBehavior: 'smooth',
             maxWidth: '400vw',
-            overflowX: 'hidden'
+            overflowX: 'hidden',
+            willChange: "transform", // Optimize for animations
+            backfaceVisibility: "hidden", // Prevent flickering
+            transform: "translateZ(0)" // Force hardware acceleration
           }}
         >
           {/* Section 1: Hero Landing Page */}
-          <section className="w-screen h-full flex-shrink-0 overflow-hidden" style={{ scrollSnapAlign: 'start', maxWidth: '100vw' }}>
+          <section 
+            className="w-screen h-full flex-shrink-0 overflow-hidden" 
+            style={{ 
+              scrollSnapAlign: 'start', 
+              maxWidth: '100vw',
+              willChange: "transform",
+              backfaceVisibility: "hidden"
+            }}
+          >
             <GooeyDemo />
           </section>
 
           {/* Section 2: Timeline Page */}
-          <section className="w-screen h-full flex-shrink-0 overflow-hidden" style={{ scrollSnapAlign: 'start', maxWidth: '100vw' }}>
+          <section 
+            className="w-screen h-full flex-shrink-0 overflow-hidden" 
+            style={{ 
+              scrollSnapAlign: 'start', 
+              maxWidth: '100vw',
+              willChange: "transform",
+              backfaceVisibility: "hidden"
+            }}
+          >
             <TimelineSection />
           </section>
 
           {/* Section 3: Rules & FAQ Page */}
-          <section className="w-screen h-full flex-shrink-0 overflow-hidden" style={{ scrollSnapAlign: 'start', maxWidth: '100vw' }}>
+          <section 
+            className="w-screen h-full flex-shrink-0 overflow-hidden" 
+            style={{ 
+              scrollSnapAlign: 'start', 
+              maxWidth: '100vw',
+              willChange: "transform",
+              backfaceVisibility: "hidden"
+            }}
+          >
             <RulesFAQSection />
           </section>
 
           {/* Section 4: 2024 Competitors */}
-          <section className="w-screen h-full flex-shrink-0 overflow-hidden" style={{ scrollSnapAlign: 'start', maxWidth: '100vw' }}>
+          <section 
+            className="w-screen h-full flex-shrink-0 overflow-hidden" 
+            style={{ 
+              scrollSnapAlign: 'start', 
+              maxWidth: '100vw',
+              willChange: "transform",
+              backfaceVisibility: "hidden"
+            }}
+          >
             <Competitors2024 />
           </section>
         </div>
